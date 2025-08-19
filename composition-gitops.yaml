@@ -13,13 +13,6 @@ spec:
     apiVersion: demo.openportal.dev/v1alpha1
     kind: WhoAmIApp
   
-  # Load the global DNS config
-  environment:
-    environmentConfigs:
-    - type: Reference
-      ref:
-        name: dns-config  # Global DNS config with zone
-  
   mode: Pipeline
   pipeline:
   
@@ -39,13 +32,8 @@ spec:
           {{- $appName := .observed.composite.resource.spec.name | default "whoami" }}
           {{- $namespace := .observed.composite.resource.metadata.namespace }}
           
-          {{/* Determine domain from dns-config or default to localhost */}}
+          {{/* For now, default to localhost - dns-config integration needs different approach */}}
           {{- $domain := printf "%s.localhost" $appName }}
-          {{- if .context.environment }}
-            {{- if .context.environment.zone }}
-              {{- $domain = printf "%s.%s" $appName .context.environment.zone }}
-            {{- end }}
-          {{- end }}
           
           {{/* Generate the deployment manifest content */}}
           {{- $deploymentYaml := printf `---
