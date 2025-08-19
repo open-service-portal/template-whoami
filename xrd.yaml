@@ -1,15 +1,18 @@
-# XRD: WhoareApp (XR Definition)
+# XRD: WhoAmIApp (XR Definition)
 # Purpose: Define a simple demo application with automatic domain configuration
 # Restaurant Analogy: The "menu item" - what customers can order
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: whoareapps.demo.openportal.dev
+  name: whoamiapps.demo.openportal.dev
 spec:
   group: demo.openportal.dev
   names:
-    kind: WhoareApp
-    plural: whoareapps
+    kind: WhoAmIApp
+    plural: whoamiapps
+  # Default to direct composition when no selector is specified
+  defaultCompositionRef:
+    name: whoamiapp-direct
   versions:
   - name: v1alpha1
     served: true

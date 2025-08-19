@@ -1,0 +1,14 @@
+# Example: Deploy WhoAmIApp via GitOps
+# This uses the gitops composition that creates a GitHub repository
+# with deployment manifests for Flux to deploy
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoAmIApp
+metadata:
+  name: demo-gitops
+  namespace: default
+  labels:
+    # Select the GitOps deployment composition
+    crossplane.io/composition-selector: mode=gitops
+spec:
+  name: demo-gitops
+  replicas: 1

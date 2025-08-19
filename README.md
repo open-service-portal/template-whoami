@@ -1,10 +1,11 @@
-# WhoareApp Crossplane Template
+# WhoAmIApp Crossplane Template
 
 A Crossplane Composite Resource (XR) template for deploying the Traefik whoami demo application with automatic environment detection.
 
 ## Overview
 
 This template demonstrates:
+- **Dual deployment modes** - Direct Kubernetes or GitOps via GitHub
 - **Dynamic subdomain creation** - deploy any app name as subdomain
 - **Automatic domain detection** - uses cluster's dns-config zone or defaults to localhost
 - **Zero configuration** - no environment parameter needed
@@ -15,12 +16,14 @@ This template demonstrates:
 
 ```
 .
-├── xrd.yaml                    # WhoareApp XR Definition
-├── composition.yaml            # Implementation using go-templating
+├── xrd.yaml                    # WhoAmIApp XR Definition
+├── composition-direct.yaml     # Direct deployment to Kubernetes
+├── composition-gitops.yaml     # GitOps deployment via GitHub repo
 ├── kustomization.yaml         # For installing via Flux
 └── example/
     ├── myapp.yaml             # Simple deployment example
-    └── demo-scaled.yaml       # Example with 3 replicas
+    ├── demo-direct.yaml       # Direct mode example
+    └── demo-gitops.yaml       # GitOps mode example
 ```
 
 ## Installation
@@ -34,12 +37,13 @@ This template demonstrates:
 ### Install the Template
 
 ```bash
-# Apply XRD and Composition
+# Apply XRD and both Compositions
 kubectl apply -k .
 
 # Or individually:
 kubectl apply -f xrd.yaml
-kubectl apply -f composition.yaml
+kubectl apply -f composition-direct.yaml
+kubectl apply -f composition-gitops.yaml
 ```
 
 ### Install via Flux
@@ -72,16 +76,27 @@ spec:
   prune: true
 ```
 
+## Deployment Modes
+
+This template provides two deployment modes:
+
+### 1. Direct Mode (Default)
+Creates Kubernetes resources directly using provider-kubernetes. Resources are immediately deployed to the cluster. This is the default mode when no composition selector is specified.
+
+### 2. GitOps Mode  
+Creates a GitHub repository with deployment manifests and configures Flux to deploy from it. This enables GitOps workflows with version control and PR-based changes. Requires explicit composition selector.
+
 ## Usage
 
-### Deploy an Application
+### Deploy an Application (Direct Mode - Default)
 
 ```yaml
 apiVersion: demo.openportal.dev/v1alpha1
-kind: WhoareApp
+kind: WhoAmIApp
 metadata:
   name: myapp
   namespace: default
+  # No composition selector needed - defaults to direct mode
 spec:
   name: myapp      # Application name (becomes subdomain)
   replicas: 1
@@ -106,24 +121,50 @@ curl http://myapp.localhost:8080
 curl https://myapp.openportal.dev
 ```
 
-### Deploy Multiple Apps
-
-You can deploy multiple apps with different names:
+### Deploy an Application (GitOps Mode)
 
 ```yaml
-# frontend.yaml
 apiVersion: demo.openportal.dev/v1alpha1
-kind: WhoareApp
+kind: WhoAmIApp
+metadata:
+  name: myapp-gitops
+  namespace: default
+  labels:
+    # Select GitOps deployment mode
+    crossplane.io/composition-selector: mode=gitops
+spec:
+  name: myapp      # Application name (becomes subdomain)
+  replicas: 1
+```
+
+This will:
+1. Create a ConfigMap with deployment manifests
+2. Set up Flux GitRepository source pointing to `https://github.com/open-service-portal/deploy-myapp`
+3. Configure Flux Kustomization to deploy from the repository
+
+**Note**: You'll need to manually create the GitHub repository and push the generated manifests from the ConfigMap.
+
+### Deploy Multiple Apps
+
+You can deploy multiple apps with different names and modes:
+
+```yaml
+# frontend.yaml - Direct deployment (default)
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoAmIApp
 metadata:
   name: frontend
+  # No selector needed - defaults to direct mode
 spec:
   name: frontend  # Creates frontend.<zone> or frontend.localhost
 ---
-# api.yaml
+# api.yaml - GitOps deployment
 apiVersion: demo.openportal.dev/v1alpha1
-kind: WhoareApp
+kind: WhoAmIApp
 metadata:
   name: backend
+  labels:
+    crossplane.io/composition-selector: mode=gitops
 spec:
   name: api      # Creates api.<zone> or api.localhost
 ```
@@ -132,7 +173,7 @@ spec:
 
 ```yaml
 apiVersion: demo.openportal.dev/v1alpha1
-kind: WhoareApp
+kind: WhoAmIApp
 metadata:
   name: demo
   namespace: default
@@ -148,12 +189,21 @@ kubectl apply -f example/demo-scaled.yaml
 
 ## How It Works
 
+### Direct Mode
 1. **DNS Config Check**: The Composition checks for the global dns-config
 2. **Automatic Domain Selection**:
    - If `dns-config` exists with zone: `<name>.<zone>` (e.g., demo.openportal.dev)
    - Otherwise: `<name>.localhost` for local development
-3. **Resource Creation**: Creates namespace, deployment, service, and ingress
+3. **Resource Creation**: Creates namespace, deployment, service, and ingress directly
 4. **Auto-Ready**: Marks the XR as ready when all resources are created
+
+### GitOps Mode
+1. **DNS Config Check**: Same as Direct mode
+2. **Automatic Domain Selection**: Same as Direct mode
+3. **Manifest Generation**: Creates deployment manifests in a ConfigMap
+4. **GitOps Setup**: Configures Flux GitRepository and Kustomization
+5. **Repository Creation**: Provides instructions for creating GitHub repository
+6. **Auto-Ready**: Marks the XR as ready when GitOps resources are configured
 
 ## Domain Configuration
 
@@ -168,7 +218,7 @@ The template automatically determines the domain:
 
 ## API Reference
 
-### WhoareApp Spec
+### WhoAmIApp Spec
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -178,7 +228,7 @@ The template automatically determines the domain:
 
 ## Restaurant Analogy
 
-- **Menu (XRD)**: WhoareApp - what developers can order
+- **Menu (XRD)**: WhoAmIApp - what developers can order
 - **Recipe (Composition)**: How to prepare the whoami deployment
 - **Ingredients (EnvironmentConfig)**: Environment-specific settings like domains
 - **Kitchen (provider-kubernetes)**: Creates the actual Kubernetes resources
@@ -188,8 +238,8 @@ The template automatically determines the domain:
 
 ### Check XR Status
 ```bash
-kubectl get whoareapp
-kubectl describe whoareapp whoami-dev
+kubectl get whoamiapp
+kubectl describe whoamiapp whoami-dev
 ```
 
 ### Check Generated Resources
@@ -200,11 +250,16 @@ kubectl get all -n whoami-dev
 
 ### View Composition Pipeline
 ```bash
-kubectl get composition xwhoareapp-kubernetes -o yaml
+# View direct composition
+kubectl get composition whoamiapp-direct -o yaml
+
+# View GitOps composition
+kubectl get composition whoamiapp-gitops -o yaml
 ```
 
 ## Benefits Over Plain Kubernetes
 
+- **Dual Deployment Modes**: Choose between direct deployment or GitOps workflows
 - **Zero Configuration**: No environment parameter needed - just works everywhere
 - **Dynamic Subdomains**: Deploy any app name without modifying manifests
 - **Automatic Domain Detection**: Uses cluster's dns-config or defaults to localhost
@@ -213,7 +268,7 @@ kubectl get composition xwhoareapp-kubernetes -o yaml
 - **Reusable**: Same XRD for multiple deployments with different names
 - **Type-Safe**: Schema validation for inputs
 - **Self-Documenting**: XRD describes available options
-- **GitOps Ready**: Deploy XRs via Flux
+- **GitOps Ready**: Deploy XRs via Flux or create GitOps repositories
 
 ## License
 

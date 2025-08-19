@@ -1,12 +1,13 @@
-# Example: Deploy WhoareApp
+# Example: Deploy WhoAmIApp with default (direct) mode
 # Domain will be automatically determined:
 # - If dns-config exists: myapp.<zone>
 # - Otherwise: myapp.localhost
 apiVersion: demo.openportal.dev/v1alpha1
-kind: WhoareApp
+kind: WhoAmIApp
 metadata:
   name: myapp
   namespace: default
+  # No composition selector needed - defaults to direct mode
 spec:
   name: myapp
   replicas: 1

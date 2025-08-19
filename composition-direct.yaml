@@ -1,14 +1,17 @@
-# Composition: WhoareApp Implementation
-# Purpose: Implements the WhoareApp using provider-kubernetes with environment detection
+# Composition: WhoAmIApp Implementation
+# Purpose: Implements the WhoAmIApp using provider-kubernetes with environment detection
 # Restaurant Analogy: The "recipe" - how to prepare what was ordered
 apiVersion: apiextensions.crossplane.io/v2
 kind: Composition
 metadata:
-  name: xwhoareapp-kubernetes
+  name: whoamiapp-direct
+  labels:
+    mode: direct
+    description: "Direct Kubernetes deployment"
 spec:
   compositeTypeRef:
     apiVersion: demo.openportal.dev/v1alpha1
-    kind: WhoareApp
+    kind: WhoAmIApp
   
   # Load the global DNS config
   environment:

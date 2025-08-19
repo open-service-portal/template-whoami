@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - xrd.yaml
-  - composition.yaml
+  - composition-direct.yaml
+  - composition-gitops.yaml
   # Note: Don't include examples here - they should be applied separately
   # Note: Uses system-wide EnvironmentConfigs from cluster setup
