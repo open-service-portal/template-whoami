@@ -13,17 +13,23 @@ spec:
     apiVersion: demo.openportal.dev/v1alpha1
     kind: WhoAmIApp
   
-  # Load the global DNS config
-  environment:
-    environmentConfigs:
-    - type: Reference
-      ref:
-        name: dns-config  # Global DNS config with zone
-  
   mode: Pipeline
   pipeline:
   
-  # Step 1: Generate resources using go-templating with environment data
+  # Step 1: Load environment configuration
+  - step: load-environment
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: dns-config  # Global DNS config with zone
+  
+  # Step 2: Generate resources using go-templating with environment data
   - step: deploy-app
     functionRef:
       name: function-go-templating
@@ -40,10 +46,9 @@ spec:
           
           {{/* Determine domain from dns-config or default to localhost */}}
           {{- $domain := printf "%s.localhost" $appName }}
-          {{- if .context.environment }}
-            {{- if .context.environment.zone }}
-              {{- $domain = printf "%s.%s" $appName .context.environment.zone }}
-            {{- end }}
+          {{- $zone := index .context "apiextensions.crossplane.io/environment" "zone" }}
+          {{- if $zone }}
+            {{- $domain = printf "%s.%s" $appName $zone }}
           {{- end }}
           
           ---
@@ -200,7 +205,7 @@ spec:
           status:
             domain: {{ $domain }}
   
-  # Step 2: Mark as ready when all resources are created
+  # Step 3: Mark as ready when all resources are created
   - step: auto-ready
     functionRef:
       name: function-auto-ready
