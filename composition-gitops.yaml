@@ -16,7 +16,20 @@ spec:
   mode: Pipeline
   pipeline:
   
-  # Step 1: Generate GitOps resources using go-templating
+  # Step 1: Load environment configuration
+  - step: load-environment
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: environmentconfigs.fn.crossplane.io/v1beta1
+      kind: Input
+      spec:
+        environmentConfigs:
+        - type: Reference
+          ref:
+            name: dns-config  # Global DNS config with zone
+  
+  # Step 2: Generate GitOps resources using go-templating
   - step: create-gitops-repo
     functionRef:
       name: function-go-templating
@@ -32,8 +45,12 @@ spec:
           {{- $appName := .observed.composite.resource.spec.name | default "whoami" }}
           {{- $namespace := .observed.composite.resource.metadata.namespace }}
           
-          {{/* For now, default to localhost - dns-config integration needs different approach */}}
+          {{/* Determine domain from dns-config or default to localhost */}}
           {{- $domain := printf "%s.localhost" $appName }}
+          {{- $zone := index .context "apiextensions.crossplane.io/environment" "zone" }}
+          {{- if $zone }}
+            {{- $domain = printf "%s.%s" $appName $zone }}
+          {{- end }}
           
           {{/* Generate the deployment manifest content */}}
           {{- $deploymentYaml := printf `---
@@ -288,7 +305,7 @@ spec:
             repository: "https://github.com/open-service-portal/deploy-{{ $appName }}"
             mode: "gitops"
   
-  # Step 2: Mark as ready when all resources are created
+  # Step 3: Mark as ready when all resources are created
   - step: auto-ready
     functionRef:
       name: function-auto-ready
