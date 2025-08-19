@@ -186,6 +186,7 @@ spec:
           metadata:
             name: {{ $xrName }}-gitops-content
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-gitops-content
               crossplane.io/external-name: {{ $xrName }}-gitops-content
           spec:
             forProvider:
@@ -212,6 +213,7 @@ spec:
           metadata:
             name: {{ $xrName }}-create-repo
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-create-repo
               crossplane.io/external-name: {{ $xrName }}-create-repo-job
           spec:
             forProvider:
@@ -252,6 +254,7 @@ spec:
           metadata:
             name: {{ $xrName }}-flux-source
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-flux-source
               crossplane.io/external-name: {{ $xrName }}-flux-source
           spec:
             forProvider:
@@ -276,6 +279,7 @@ spec:
           metadata:
             name: {{ $xrName }}-flux-kustomization
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-flux-kustomization
               crossplane.io/external-name: {{ $xrName }}-flux-kustomization
           spec:
             forProvider:
@@ -295,15 +299,6 @@ spec:
                   targetNamespace: {{ $xrName }}
             providerConfigRef:
               name: kubernetes-provider
-          
-          ---
-          # Status update
-          apiVersion: meta.crossplane.io/v1alpha1
-          kind: CompositeResourceDefinition
-          status:
-            domain: {{ $domain }}
-            repository: "https://github.com/open-service-portal/deploy-{{ $appName }}"
-            mode: "gitops"
   
   # Step 3: Mark as ready when all resources are created
   - step: auto-ready
