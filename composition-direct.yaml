@@ -58,6 +58,7 @@ spec:
           metadata:
             name: {{ $xrName }}-namespace
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-namespace
               crossplane.io/external-name: {{ $xrName }}-namespace
           spec:
             forProvider:
@@ -79,6 +80,7 @@ spec:
           metadata:
             name: {{ $xrName }}-deployment
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-deployment
               crossplane.io/external-name: {{ $xrName }}-deployment
           spec:
             forProvider:
@@ -136,6 +138,7 @@ spec:
           metadata:
             name: {{ $xrName }}-service
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-service
               crossplane.io/external-name: {{ $xrName }}-service
           spec:
             forProvider:
@@ -168,6 +171,7 @@ spec:
           metadata:
             name: {{ $xrName }}-ingress
             annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-ingress
               crossplane.io/external-name: {{ $xrName }}-ingress
           spec:
             forProvider:
@@ -197,13 +201,6 @@ spec:
                               number: 80
             providerConfigRef:
               name: kubernetes-provider
-          
-          ---
-          # Status update
-          apiVersion: meta.crossplane.io/v1alpha1
-          kind: CompositeResourceDefinition
-          status:
-            domain: {{ $domain }}
   
   # Step 3: Mark as ready when all resources are created
   - step: auto-ready
