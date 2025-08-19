@@ -5,8 +5,9 @@ A Crossplane Composite Resource (XR) template for deploying the Traefik whoami d
 ## Overview
 
 This template demonstrates:
-- **Environment-aware configuration** using EnvironmentConfig
-- **Dynamic domain selection** based on environment (localhost vs openportal.dev)
+- **Dynamic subdomain creation** - deploy any app name as subdomain
+- **Environment-aware domains** - automatic domain selection based on environment
+- **System config integration** - uses platform-wide dns-config
 - **Go-templating** for flexible resource generation  
 - **GitOps compatibility** - XRs can be deployed via Flux
 
@@ -16,11 +17,10 @@ This template demonstrates:
 .
 ├── xrd.yaml                    # WhoareApp XR Definition
 ├── composition.yaml            # Implementation using go-templating
-├── environment-configs.yaml    # Environment-specific settings
 ├── kustomization.yaml         # For installing via Flux
 └── example/
-    ├── example-local.yaml     # Local deployment (whoami.localhost)
-    └── example-production.yaml # Production deployment (whoami.openportal.dev)
+    ├── example-local.yaml     # Local deployment (myapp.localhost)
+    └── example-production.yaml # Production deployment (demo.openportal.dev)
 ```
 
 ## Installation
@@ -29,18 +29,17 @@ This template demonstrates:
 - Kubernetes cluster with Crossplane v2.0+
 - provider-kubernetes installed
 - NGINX Ingress Controller
-- System-wide EnvironmentConfigs (installed by setup-cluster.sh)
+- System-wide dns-config EnvironmentConfig (installed by setup-cluster.sh)
 
 ### Install the Template
 
 ```bash
-# Apply XRD, Composition, and EnvironmentConfigs
+# Apply XRD and Composition
 kubectl apply -k .
 
 # Or individually:
 kubectl apply -f xrd.yaml
 kubectl apply -f composition.yaml
-kubectl apply -f environment-configs.yaml
 ```
 
 ### Install via Flux
@@ -103,6 +102,30 @@ kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
 curl http://myapp.localhost:8080
 ```
 
+### Deploy Multiple Apps
+
+You can deploy multiple apps with different names:
+
+```yaml
+# app1.yaml
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: frontend
+spec:
+  name: frontend
+  environment: production  # Creates frontend.openportal.dev
+---
+# app2.yaml
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: backend
+spec:
+  name: api
+  environment: production  # Creates api.openportal.dev
+```
+
 ### Deploy for Production
 
 ```yaml
@@ -137,15 +160,17 @@ curl https://demo.openportal.dev
 3. **Resource Creation**: Creates namespace, deployment, service, and ingress
 4. **Auto-Ready**: Marks the XR as ready when all resources are created
 
-## Environment Configurations
+## Domain Configuration
 
-The template uses the system-wide `dns-config` EnvironmentConfig which provides the DNS zone. Domain patterns:
+The template uses the system-wide `dns-config` EnvironmentConfig (provides zone: `openportal.dev`) and constructs domains based on the `environment` parameter:
 
-| Environment | Domain Pattern | Example |
+| Environment | Domain Pattern | Example (name=myapp) |
 |------------|---------------|----------|
 | `local` | `<name>.localhost` | myapp.localhost |
 | `production` | `<name>.<zone>` | myapp.openportal.dev |
 | `staging` | `<name>-staging.<zone>` | myapp-staging.openportal.dev |
+
+No additional environment configs needed - the template handles domain construction internally!
 
 ## API Reference
 
@@ -187,8 +212,11 @@ kubectl get composition xwhoareapp-kubernetes -o yaml
 
 ## Benefits Over Plain Kubernetes
 
+- **Dynamic Subdomains**: Deploy any app name without modifying manifests
+- **Smart Domain Logic**: Automatic domain construction based on environment
+- **System Config Integration**: Uses platform-wide DNS zone configuration
 - **No Manual Patching**: Environment settings are declarative
-- **Reusable**: Same XRD for multiple deployments
+- **Reusable**: Same XRD for multiple deployments with different names
 - **Type-Safe**: Schema validation for inputs
 - **Self-Documenting**: XRD describes available options
 - **GitOps Ready**: Deploy XRs via Flux
