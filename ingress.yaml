@@ -6,7 +6,11 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: whoami.openportal.dev
+  # Domain is dynamically set based on environment:
+  # Local: whoami.localhost
+  # Production: whoami.openportal.dev (when LoadBalancer IP is 50.56.157.82)
+  # Other clouds: whoami.EXTERNAL_IP.nip.io
+  - host: whoami.localhost
     http:
       paths:
       - path: /

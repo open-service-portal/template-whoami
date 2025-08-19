@@ -1,6 +1,8 @@
 # Traefik Whoami Demo Deployment
 
-A simple demo application that displays HTTP request information, deployed via Flux GitOps.
+A simple demo application that displays HTTP request information, with two deployment approaches:
+1. **Plain Kubernetes** with Flux GitOps (simple)
+2. **Crossplane XR** with EnvironmentConfig (advanced)
 
 ## Overview
 
@@ -11,15 +13,20 @@ This repository contains Kubernetes manifests for deploying the [Traefik whoami]
 ```
 .
 ├── namespace.yaml           # Dedicated namespace for the app
-├── deployment.yaml          # 2-replica deployment
-├── service.yaml            # ClusterIP service
-├── ingress.yaml            # NGINX ingress configuration
-├── kustomization.yaml      # Base kustomization
-└── overlays/
-    ├── local/              # Local development overlay
-    │   └── kustomization.yaml
-    └── production/         # Production overlay
-        └── kustomization.yaml
+├── configmap.yaml          # Environment configuration
+├── deployment.yaml         # 1-replica deployment (scaled up in production)
+├── service.yaml           # ClusterIP service
+├── ingress.yaml           # NGINX ingress configuration
+├── kustomization.yaml     # Base kustomization
+├── overlays/
+│   └── production/        # Production overlay (3 replicas, openportal.dev)
+│       └── kustomization.yaml
+└── crossplane-xr/         # Crossplane XR approach (alternative)
+    ├── xrd.yaml          # WhoareApp definition
+    ├── composition.yaml  # Implementation with go-templating
+    ├── environment-configs.yaml  # Environment-specific settings
+    ├── example-local.yaml       # Local deployment example
+    └── example-production.yaml  # Production deployment example
 ```
 
 ## Deployment with Flux
@@ -41,16 +48,16 @@ flux create source git deploy-whoami \
 
 ### 2. Create Kustomization for Your Environment (Deploys the app)
 
-For **local development**:
+For **local development** (default):
 ```bash
-flux create kustomization whoami-local \
+flux create kustomization whoami \
   --source=GitRepository/deploy-whoami \
-  --path="./overlays/local" \
+  --path="./" \
   --prune=true \
   --interval=1m
 ```
 
-For **production**:
+For **production** (with overlay):
 ```bash
 flux create kustomization whoami-prod \
   --source=GitRepository/deploy-whoami \
@@ -78,6 +85,49 @@ Use the provided `flux-deploy.sh` script for easy deployment:
 # Check status
 ./flux-deploy.sh status
 ```
+
+## Alternative: Crossplane XR Deployment
+
+### Overview
+The Crossplane XR approach provides:
+- **Environment-aware configuration** using EnvironmentConfig
+- **Declarative resource management** with go-templating
+- **GitOps compatible** - XRs can be deployed via Flux
+
+### Setup Crossplane Resources
+
+1. **Apply the XRD and Composition**:
+```bash
+kubectl apply -f crossplane-xr/xrd.yaml
+kubectl apply -f crossplane-xr/composition.yaml
+kubectl apply -f crossplane-xr/environment-configs.yaml
+```
+
+2. **Deploy using XR**:
+
+For local:
+```bash
+kubectl apply -f crossplane-xr/example-local.yaml
+```
+
+For production:
+```bash
+kubectl apply -f crossplane-xr/example-production.yaml
+```
+
+### How It Works
+
+1. **EnvironmentConfig** defines domain settings per environment
+2. **Composition** uses go-templating to generate resources
+3. **Environment selection** in the XR determines which config to use
+4. Resources are created with the appropriate domain automatically
+
+### Benefits Over Plain Kubernetes
+
+- **No manual patching** - environment settings are declarative
+- **Reusable** - same XRD can be used for multiple deployments
+- **Type-safe** - XRD schema validates inputs
+- **Self-documenting** - XRD describes available options
 
 ## Manual Deployment (Testing)
 

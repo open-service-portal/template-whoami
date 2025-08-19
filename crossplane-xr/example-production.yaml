@@ -1,0 +1,9 @@
+# Example: Deploy WhoareApp for production
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: whoami-prod
+  namespace: default
+spec:
+  replicas: 3
+  environment: production  # Uses whoami.openportal.dev domain

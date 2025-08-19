@@ -11,25 +11,10 @@ REPO_URL="https://github.com/open-service-portal/deploy-whoami"
 BRANCH="main"
 NAMESPACE="flux-system"
 
-# Function to check if flux is installed
-check_flux() {
-    if ! command -v flux &> /dev/null; then
-        echo -e "${RED}Error: flux CLI is not installed${NC}"
-        echo "Install it from: https://fluxcd.io/flux/installation/"
-        exit 1
-    fi
-}
 
 # Function to deploy
 deploy() {
-    local ENV=$1
-    
-    if [[ "$ENV" != "local" && "$ENV" != "production" ]]; then
-        echo -e "${RED}Error: Environment must be 'local' or 'production'${NC}"
-        exit 1
-    fi
-    
-    echo -e "${YELLOW}Deploying whoami to $ENV environment...${NC}"
+    echo -e "${YELLOW}Deploying whoami...${NC}"
     
     # Step 1: Create or update GitRepository
     echo -e "${GREEN}Step 1: Creating GitRepository source...${NC}"
@@ -44,31 +29,36 @@ deploy() {
     kubectl wait --for=condition=ready --timeout=60s \
         gitrepository/deploy-whoami -n "$NAMESPACE" || true
     
-    # Step 2: Create Kustomization for the environment
-    echo -e "${GREEN}Step 2: Creating Kustomization for $ENV...${NC}"
+    # Step 2: Create Kustomization (single deployment for all environments)
+    echo -e "${GREEN}Step 2: Creating Kustomization...${NC}"
     
-    if [[ "$ENV" == "local" ]]; then
-        flux create kustomization whoami-local \
-            --source=GitRepository/deploy-whoami \
-            --path="./overlays/local" \
-            --prune=true \
-            --interval=1m \
-            --export | kubectl apply -f -
-        
-        echo -e "${GREEN}✓ Deployed to local environment${NC}"
-        echo -e "Access at: ${YELLOW}http://whoami.127.0.0.1.nip.io:8080${NC}"
-        echo -e "Note: Run port-forward first: ${YELLOW}kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80${NC}"
-        
+    flux create kustomization whoami \
+        --source=GitRepository/deploy-whoami \
+        --path="./" \
+        --prune=true \
+        --interval=1m \
+        --export | kubectl apply -f -
+    
+    echo -e "${GREEN}✓ Deployed whoami${NC}"
+    
+    # Wait for environment detection job to complete
+    echo "Waiting for environment detection..."
+    kubectl wait --for=condition=complete --timeout=60s job/detect-environment -n whoami-demo 2>/dev/null || true
+    
+    # Get the configured domain from ConfigMap
+    DOMAIN=$(kubectl get configmap environment-config -n whoami-demo -o jsonpath='{.data.domain}' 2>/dev/null || echo "whoami.localhost")
+    INGRESS_IP=$(kubectl get configmap environment-config -n whoami-demo -o jsonpath='{.data.ingress-ip}' 2>/dev/null || echo "127.0.0.1")
+    
+    echo -e "${GREEN}Environment detected:${NC}"
+    echo -e "  Domain: ${YELLOW}$DOMAIN${NC}"
+    
+    if [[ "$DOMAIN" == "whoami.openportal.dev" ]]; then
+        echo -e "  Access at: ${YELLOW}https://$DOMAIN${NC}"
+    elif [[ "$DOMAIN" == "whoami.localhost" ]]; then
+        echo -e "  Access at: ${YELLOW}http://$DOMAIN:8080${NC}"
+        echo -e "  Note: Run port-forward first: ${YELLOW}kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80${NC}"
     else
-        flux create kustomization whoami-prod \
-            --source=GitRepository/deploy-whoami \
-            --path="./overlays/production" \
-            --prune=true \
-            --interval=1m \
-            --export | kubectl apply -f -
-        
-        echo -e "${GREEN}✓ Deployed to production environment${NC}"
-        echo -e "Access at: ${YELLOW}https://whoami.openportal.dev${NC}"
+        echo -e "  Access at: ${YELLOW}http://$DOMAIN${NC}"
     fi
     
     echo ""
@@ -78,30 +68,15 @@ deploy() {
 
 # Function to remove deployment
 remove() {
-    local ENV=$1
+    echo -e "${YELLOW}Removing whoami deployment...${NC}"
     
-    if [[ "$ENV" != "local" && "$ENV" != "production" ]]; then
-        echo -e "${RED}Error: Environment must be 'local' or 'production'${NC}"
-        exit 1
-    fi
+    # Delete the kustomization
+    flux delete kustomization whoami --silent
     
-    echo -e "${YELLOW}Removing whoami from $ENV environment...${NC}"
+    # Delete the source
+    flux delete source git deploy-whoami --silent
     
-    if [[ "$ENV" == "local" ]]; then
-        flux delete kustomization whoami-local --silent
-    else
-        flux delete kustomization whoami-prod --silent
-    fi
-    
-    # Check if any other kustomizations use this source
-    KUSTOMIZATIONS=$(flux get kustomizations -A 2>/dev/null | grep -c "deploy-whoami" || echo "0")
-    
-    if [[ "$KUSTOMIZATIONS" == "0" ]]; then
-        echo "No other kustomizations using this source, removing GitRepository..."
-        flux delete source git deploy-whoami --silent
-    fi
-    
-    echo -e "${GREEN}✓ Removed whoami from $ENV${NC}"
+    echo -e "${GREEN}✓ Removed whoami deployment${NC}"
 }
 
 # Function to check status
@@ -122,26 +97,14 @@ status() {
     kubectl get ingress -n whoami-demo 2>/dev/null || echo "No ingress found"
 }
 
-# Main script logic
-check_flux
 
 case "$1" in
     deploy)
-        if [[ -z "$2" ]]; then
-            echo -e "${RED}Error: Please specify environment (local/production)${NC}"
-            echo "Usage: $0 deploy {local|production}"
-            exit 1
-        fi
-        deploy "$2"
+        deploy
         ;;
     
     remove)
-        if [[ -z "$2" ]]; then
-            echo -e "${RED}Error: Please specify environment (local/production)${NC}"
-            echo "Usage: $0 remove {local|production}"
-            exit 1
-        fi
-        remove "$2"
+        remove
         ;;
     
     status)
@@ -149,18 +112,17 @@ case "$1" in
         ;;
     
     *)
-        echo "Usage: $0 {deploy|remove|status} [environment]"
+        echo "Usage: $0 {deploy|remove|status}"
         echo ""
         echo "Commands:"
-        echo "  deploy {local|production}  - Deploy whoami to specified environment"
-        echo "  remove {local|production}  - Remove whoami from specified environment"
-        echo "  status                     - Check deployment status"
+        echo "  deploy  - Deploy whoami (auto-detects environment)"
+        echo "  remove  - Remove whoami deployment"
+        echo "  status  - Check deployment status"
         echo ""
         echo "Examples:"
-        echo "  $0 deploy local      # Deploy to local environment"
-        echo "  $0 deploy production # Deploy to production"
-        echo "  $0 remove local      # Remove from local"
-        echo "  $0 status           # Check status"
+        echo "  $0 deploy   # Deploy with automatic environment detection"
+        echo "  $0 remove   # Remove deployment"
+        echo "  $0 status   # Check status"
         exit 1
         ;;
 esac

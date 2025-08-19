@@ -1,0 +1,37 @@
+# Environment Configurations for WhoareApp
+# These define the domain settings for different environments
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: whoami-local
+  labels:
+    environment: local
+data:
+  domain: whoami.localhost
+  ingress:
+    className: nginx
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: whoami-production
+  labels:
+    environment: production
+data:
+  domain: whoami.openportal.dev
+  ingress:
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig  
+metadata:
+  name: whoami-staging
+  labels:
+    environment: staging
+data:
+  domain: whoami-staging.openportal.dev
+  ingress:
+    className: nginx

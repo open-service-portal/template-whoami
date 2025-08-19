@@ -1,0 +1,9 @@
+# Example: Deploy WhoareApp for local development
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: whoami-local
+  namespace: default
+spec:
+  replicas: 1
+  environment: local  # Uses whoami.localhost domain
