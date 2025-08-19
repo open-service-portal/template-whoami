@@ -194,12 +194,9 @@ spec:
                     app: whoami-gitops
                     instance: {{ $xrName }}
                 data:
-                  deployment.yaml: |
-{{ $deploymentYaml | indent 20 }}
-                  kustomization.yaml: |
-{{ $kustomizationYaml | indent 20 }}
-                  README.md: |
-{{ $readmeContent | indent 20 }}
+                  deployment.yaml: {{ $deploymentYaml | quote }}
+                  kustomization.yaml: {{ $kustomizationYaml | quote }}
+                  README.md: {{ $readmeContent | quote }}
             providerConfigRef:
               name: kubernetes-provider
           
