@@ -24,7 +24,13 @@ This repository contains Kubernetes manifests for deploying the [Traefik whoami]
 
 ## Deployment with Flux
 
-### 1. Add Repository to Flux
+### Important: Two-Step Process
+
+Flux requires two resources to deploy from a Git repository:
+1. **GitRepository** - Points to the source code
+2. **Kustomization** - Deploys the manifests from the source
+
+### 1. Add Repository to Flux (Creates GitRepository)
 
 ```bash
 flux create source git deploy-whoami \
@@ -33,12 +39,12 @@ flux create source git deploy-whoami \
   --interval=1m
 ```
 
-### 2. Create Kustomization for Your Environment
+### 2. Create Kustomization for Your Environment (Deploys the app)
 
 For **local development**:
 ```bash
 flux create kustomization whoami-local \
-  --source=deploy-whoami \
+  --source=GitRepository/deploy-whoami \
   --path="./overlays/local" \
   --prune=true \
   --interval=1m
@@ -47,10 +53,30 @@ flux create kustomization whoami-local \
 For **production**:
 ```bash
 flux create kustomization whoami-prod \
-  --source=deploy-whoami \
+  --source=GitRepository/deploy-whoami \
   --path="./overlays/production" \
   --prune=true \
   --interval=1m
+```
+
+### Quick Deploy Script
+
+Use the provided `flux-deploy.sh` script for easy deployment:
+
+```bash
+# Deploy to local environment
+./flux-deploy.sh deploy local
+
+# Deploy to production
+./flux-deploy.sh deploy production
+
+# Remove deployment
+./flux-deploy.sh remove local
+# or
+./flux-deploy.sh remove production
+
+# Check status
+./flux-deploy.sh status
 ```
 
 ## Manual Deployment (Testing)
