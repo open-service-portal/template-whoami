@@ -1,0 +1,12 @@
+# Example: Deploy WhoareApp
+# Domain will be automatically determined:
+# - If dns-config exists: myapp.<zone>
+# - Otherwise: myapp.localhost
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: myapp
+  namespace: default
+spec:
+  name: myapp
+  replicas: 1

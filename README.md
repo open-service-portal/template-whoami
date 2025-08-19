@@ -6,8 +6,8 @@ A Crossplane Composite Resource (XR) template for deploying the Traefik whoami d
 
 This template demonstrates:
 - **Dynamic subdomain creation** - deploy any app name as subdomain
-- **Environment-aware domains** - automatic domain selection based on environment
-- **System config integration** - uses platform-wide dns-config
+- **Automatic domain detection** - uses cluster's dns-config zone or defaults to localhost
+- **Zero configuration** - no environment parameter needed
 - **Go-templating** for flexible resource generation  
 - **GitOps compatibility** - XRs can be deployed via Flux
 
@@ -19,8 +19,8 @@ This template demonstrates:
 ├── composition.yaml            # Implementation using go-templating
 ├── kustomization.yaml         # For installing via Flux
 └── example/
-    ├── example-local.yaml     # Local deployment (myapp.localhost)
-    └── example-production.yaml # Production deployment (demo.openportal.dev)
+    ├── myapp.yaml             # Simple deployment example
+    └── demo-scaled.yaml       # Example with 3 replicas
 ```
 
 ## Installation
@@ -74,32 +74,36 @@ spec:
 
 ## Usage
 
-### Deploy for Local Development
+### Deploy an Application
 
 ```yaml
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: myapp-local
+  name: myapp
   namespace: default
 spec:
   name: myapp      # Application name (becomes subdomain)
   replicas: 1
-  environment: local  # Uses localhost domain
 ```
 
 Apply:
 ```bash
-kubectl apply -f example/example-local.yaml
+kubectl apply -f example/myapp.yaml
 ```
+
+The domain is automatically determined:
+- **With dns-config**: `myapp.<zone>` (e.g., myapp.openportal.dev)
+- **Without dns-config**: `myapp.localhost`
 
 Access:
 ```bash
-# Port-forward the ingress controller
+# For local development (myapp.localhost)
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
-
-# Access the app
 curl http://myapp.localhost:8080
+
+# For production (myapp.openportal.dev)
+curl https://myapp.openportal.dev
 ```
 
 ### Deploy Multiple Apps
@@ -107,70 +111,60 @@ curl http://myapp.localhost:8080
 You can deploy multiple apps with different names:
 
 ```yaml
-# app1.yaml
+# frontend.yaml
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
   name: frontend
 spec:
-  name: frontend
-  environment: production  # Creates frontend.openportal.dev
+  name: frontend  # Creates frontend.<zone> or frontend.localhost
 ---
-# app2.yaml
+# api.yaml
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
   name: backend
 spec:
-  name: api
-  environment: production  # Creates api.openportal.dev
+  name: api      # Creates api.<zone> or api.localhost
 ```
 
-### Deploy for Production
+### Deploy with Scaling
 
 ```yaml
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: demo-prod
+  name: demo
   namespace: default
 spec:
   name: demo       # Application name (becomes subdomain)
-  replicas: 3
-  environment: production  # Uses openportal.dev domain
+  replicas: 3      # Scale to 3 replicas
 ```
 
 Apply:
 ```bash
-kubectl apply -f example/example-production.yaml
-```
-
-Access:
-```bash
-curl https://demo.openportal.dev
+kubectl apply -f example/demo-scaled.yaml
 ```
 
 ## How It Works
 
-1. **DNS Zone Loading**: The Composition loads the global dns-config to get the zone (openportal.dev)
-2. **Domain Construction**: Based on the `environment` field:
-   - `local`: `<name>.localhost`
-   - `production`: `<name>.<zone>` (e.g., demo.openportal.dev)
-   - `staging`: `<name>-staging.<zone>` (e.g., demo-staging.openportal.dev)
+1. **DNS Config Check**: The Composition checks for the global dns-config
+2. **Automatic Domain Selection**:
+   - If `dns-config` exists with zone: `<name>.<zone>` (e.g., demo.openportal.dev)
+   - Otherwise: `<name>.localhost` for local development
 3. **Resource Creation**: Creates namespace, deployment, service, and ingress
 4. **Auto-Ready**: Marks the XR as ready when all resources are created
 
 ## Domain Configuration
 
-The template uses the system-wide `dns-config` EnvironmentConfig (provides zone: `openportal.dev`) and constructs domains based on the `environment` parameter:
+The template automatically determines the domain:
 
-| Environment | Domain Pattern | Example (name=myapp) |
-|------------|---------------|----------|
-| `local` | `<name>.localhost` | myapp.localhost |
-| `production` | `<name>.<zone>` | myapp.openportal.dev |
-| `staging` | `<name>-staging.<zone>` | myapp-staging.openportal.dev |
+| Condition | Domain Pattern | Example (name=myapp) |
+|-----------|---------------|----------|
+| dns-config exists with zone | `<name>.<zone>` | myapp.openportal.dev |
+| No dns-config | `<name>.localhost` | myapp.localhost |
 
-No additional environment configs needed - the template handles domain construction internally!
+**Zero configuration required!** Deploy the same XR to any cluster and it automatically uses the right domain.
 
 ## API Reference
 
@@ -180,7 +174,6 @@ No additional environment configs needed - the template handles domain construct
 |-------|------|---------|-------------|
 | `name` | string | whoami | Application name (becomes subdomain) |
 | `replicas` | integer | 1 | Number of pod replicas (1-3) |
-| `environment` | string | auto-detect | Environment: local, production, staging, auto-detect |
 | `image` | string | traefik/whoami:v1.10.1 | Container image to deploy |
 
 ## Restaurant Analogy
@@ -212,10 +205,11 @@ kubectl get composition xwhoareapp-kubernetes -o yaml
 
 ## Benefits Over Plain Kubernetes
 
+- **Zero Configuration**: No environment parameter needed - just works everywhere
 - **Dynamic Subdomains**: Deploy any app name without modifying manifests
-- **Smart Domain Logic**: Automatic domain construction based on environment
-- **System Config Integration**: Uses platform-wide DNS zone configuration
-- **No Manual Patching**: Environment settings are declarative
+- **Automatic Domain Detection**: Uses cluster's dns-config or defaults to localhost
+- **True Portability**: Same XR works in local, staging, and production
+- **No Manual Patching**: Everything is automatic
 - **Reusable**: Same XRD for multiple deployments with different names
 - **Type-Safe**: Schema validation for inputs
 - **Self-Documenting**: XRD describes available options

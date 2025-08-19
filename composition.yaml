@@ -30,30 +30,17 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- $environment := .observed.composite.resource.spec.environment | default "local" }}
           {{- $replicas := .observed.composite.resource.spec.replicas | default 1 }}
           {{- $image := .observed.composite.resource.spec.image | default "traefik/whoami:v1.10.1" }}
           {{- $xrName := .observed.composite.resource.metadata.name }}
           {{- $appName := .observed.composite.resource.spec.name | default "whoami" }}
           
-          {{/* Determine domain based on environment and zone config */}}
-          {{- $zone := "localhost" }}
+          {{/* Determine domain from dns-config or default to localhost */}}
+          {{- $domain := printf "%s.localhost" $appName }}
           {{- if .context.environment }}
             {{- if .context.environment.zone }}
-              {{- $zone = .context.environment.zone }}
+              {{- $domain = printf "%s.%s" $appName .context.environment.zone }}
             {{- end }}
-          {{- end }}
-          
-          {{/* Build the full domain */}}
-          {{- $domain := "" }}
-          {{- if eq $environment "local" }}
-            {{- $domain = printf "%s.localhost" $appName }}
-          {{- else if eq $environment "production" }}
-            {{- $domain = printf "%s.%s" $appName $zone }}
-          {{- else if eq $environment "staging" }}
-            {{- $domain = printf "%s-staging.%s" $appName $zone }}
-          {{- else }}
-            {{- $domain = printf "%s.localhost" $appName }}
           {{- end }}
           
           ---
