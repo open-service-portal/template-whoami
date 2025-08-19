@@ -1,219 +1,195 @@
-# Traefik Whoami Demo Deployment
+# WhoareApp Crossplane Template
 
-A simple demo application that displays HTTP request information, with two deployment approaches:
-1. **Plain Kubernetes** with Flux GitOps (simple)
-2. **Crossplane XR** with EnvironmentConfig (advanced)
+A Crossplane Composite Resource (XR) template for deploying the Traefik whoami demo application with automatic environment detection.
 
 ## Overview
 
-This repository contains Kubernetes manifests for deploying the [Traefik whoami](https://github.com/traefik/whoami) application, structured for GitOps with Flux.
+This template demonstrates:
+- **Environment-aware configuration** using EnvironmentConfig
+- **Dynamic domain selection** based on environment (localhost vs openportal.dev)
+- **Go-templating** for flexible resource generation  
+- **GitOps compatibility** - XRs can be deployed via Flux
 
 ## Structure
 
 ```
 .
-├── namespace.yaml           # Dedicated namespace for the app
-├── configmap.yaml          # Environment configuration
-├── deployment.yaml         # 1-replica deployment (scaled up in production)
-├── service.yaml           # ClusterIP service
-├── ingress.yaml           # NGINX ingress configuration
-├── kustomization.yaml     # Base kustomization
-├── overlays/
-│   └── production/        # Production overlay (3 replicas, openportal.dev)
-│       └── kustomization.yaml
-└── crossplane-xr/         # Crossplane XR approach (alternative)
-    ├── xrd.yaml          # WhoareApp definition
-    ├── composition.yaml  # Implementation with go-templating
-    ├── environment-configs.yaml  # Environment-specific settings
-    ├── example-local.yaml       # Local deployment example
-    └── example-production.yaml  # Production deployment example
+├── xrd.yaml                    # WhoareApp XR Definition
+├── composition.yaml            # Implementation using go-templating
+├── environment-configs.yaml    # Environment-specific settings
+├── kustomization.yaml         # For installing via Flux
+└── example/
+    ├── example-local.yaml     # Local deployment (whoami.localhost)
+    └── example-production.yaml # Production deployment (whoami.openportal.dev)
 ```
 
-## Deployment with Flux
+## Installation
 
-### Important: Two-Step Process
+### Prerequisites
+- Kubernetes cluster with Crossplane v2.0+
+- provider-kubernetes installed
+- NGINX Ingress Controller
 
-Flux requires two resources to deploy from a Git repository:
-1. **GitRepository** - Points to the source code
-2. **Kustomization** - Deploys the manifests from the source
-
-### 1. Add Repository to Flux (Creates GitRepository)
+### Install the Template
 
 ```bash
-flux create source git deploy-whoami \
-  --url=https://github.com/open-service-portal/deploy-whoami \
-  --branch=main \
-  --interval=1m
+# Apply XRD, Composition, and EnvironmentConfigs
+kubectl apply -k .
+
+# Or individually:
+kubectl apply -f xrd.yaml
+kubectl apply -f composition.yaml
+kubectl apply -f environment-configs.yaml
 ```
 
-### 2. Create Kustomization for Your Environment (Deploys the app)
+### Install via Flux
 
-For **local development** (default):
+Add to your Flux catalog or create a dedicated source:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: template-whoami
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  url: https://github.com/open-service-portal/template-whoami
+  ref:
+    branch: main
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: template-whoami
+  namespace: flux-system
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: GitRepository
+    name: template-whoami
+  path: "./"
+  prune: true
+```
+
+## Usage
+
+### Deploy for Local Development
+
+```yaml
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: whoami-dev
+  namespace: default
+spec:
+  replicas: 1
+  environment: local  # Uses whoami.localhost
+```
+
+Apply:
 ```bash
-flux create kustomization whoami \
-  --source=GitRepository/deploy-whoami \
-  --path="./" \
-  --prune=true \
-  --interval=1m
+kubectl apply -f example/example-local.yaml
 ```
 
-For **production** (with overlay):
+Access:
 ```bash
-flux create kustomization whoami-prod \
-  --source=GitRepository/deploy-whoami \
-  --path="./overlays/production" \
-  --prune=true \
-  --interval=1m
+# Port-forward the ingress controller
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
+
+# Access the app
+curl http://whoami.localhost:8080
 ```
 
-### Quick Deploy Script
+### Deploy for Production
 
-Use the provided `flux-deploy.sh` script for easy deployment:
+```yaml
+apiVersion: demo.openportal.dev/v1alpha1
+kind: WhoareApp
+metadata:
+  name: whoami-prod
+  namespace: default
+spec:
+  replicas: 3
+  environment: production  # Uses whoami.openportal.dev
+```
 
+Apply:
 ```bash
-# Deploy to local environment
-./flux-deploy.sh deploy local
-
-# Deploy to production
-./flux-deploy.sh deploy production
-
-# Remove deployment
-./flux-deploy.sh remove local
-# or
-./flux-deploy.sh remove production
-
-# Check status
-./flux-deploy.sh status
+kubectl apply -f example/example-production.yaml
 ```
 
-## Alternative: Crossplane XR Deployment
-
-### Overview
-The Crossplane XR approach provides:
-- **Environment-aware configuration** using EnvironmentConfig
-- **Declarative resource management** with go-templating
-- **GitOps compatible** - XRs can be deployed via Flux
-
-### Setup Crossplane Resources
-
-1. **Apply the XRD and Composition**:
-```bash
-kubectl apply -f crossplane-xr/xrd.yaml
-kubectl apply -f crossplane-xr/composition.yaml
-kubectl apply -f crossplane-xr/environment-configs.yaml
-```
-
-2. **Deploy using XR**:
-
-For local:
-```bash
-kubectl apply -f crossplane-xr/example-local.yaml
-```
-
-For production:
-```bash
-kubectl apply -f crossplane-xr/example-production.yaml
-```
-
-### How It Works
-
-1. **EnvironmentConfig** defines domain settings per environment
-2. **Composition** uses go-templating to generate resources
-3. **Environment selection** in the XR determines which config to use
-4. Resources are created with the appropriate domain automatically
-
-### Benefits Over Plain Kubernetes
-
-- **No manual patching** - environment settings are declarative
-- **Reusable** - same XRD can be used for multiple deployments
-- **Type-safe** - XRD schema validates inputs
-- **Self-documenting** - XRD describes available options
-
-## Manual Deployment (Testing)
-
-### Deploy to Local Cluster
-```bash
-kubectl apply -k overlays/local/
-```
-
-### Deploy to Production
-```bash
-kubectl apply -k overlays/production/
-```
-
-### Remove Deployment
-```bash
-kubectl delete -k overlays/local/   # or overlays/production/
-```
-
-## Accessing the Application
-
-### Local (with nip.io)
-```bash
-curl http://whoami.127.0.0.1.nip.io:8080
-# Note: Requires port-forward: kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
-```
-
-### Production (with real domain)
+Access:
 ```bash
 curl https://whoami.openportal.dev
 ```
 
-## What the Application Does
+## How It Works
 
-The whoami application returns information about the HTTP request:
-- Hostname (pod name)
-- IP addresses
-- Request headers
-- Request method and path
+1. **EnvironmentConfig Selection**: The Composition loads environment-specific configurations based on the `environment` field
+2. **Go-Templating**: Dynamically generates Kubernetes resources with the correct domain
+3. **Resource Creation**: Creates namespace, deployment, service, and ingress
+4. **Auto-Ready**: Marks the XR as ready when all resources are created
 
-Example output:
-```
-Hostname: whoami-5d8f9d6c9b-4xkzj
-IP: 10.42.0.10
-RemoteAddr: 10.42.0.1:52918
-GET / HTTP/1.1
-Host: whoami.openportal.dev
-User-Agent: curl/7.68.0
-```
+## Environment Configurations
 
-## Environment Differences
+### Local (whoami.localhost)
+- Domain: `whoami.localhost`
+- Suitable for local development with port-forwarding
 
-### Local
-- Host: `whoami.127.0.0.1.nip.io`
-- Replicas: 2
-- No TLS
+### Production (whoami.openportal.dev)
+- Domain: `whoami.openportal.dev`
+- Can include TLS configuration (cert-manager annotations)
 
-### Production
-- Host: `whoami.openportal.dev`
-- Replicas: 3
-- TLS with cert-manager (when configured)
+### Staging (whoami-staging.openportal.dev)
+- Domain: `whoami-staging.openportal.dev`
+- For testing before production
 
-## Monitoring
+## API Reference
 
-Check deployment status:
-```bash
-kubectl get all -n whoami-demo
-```
+### WhoareApp Spec
 
-View logs:
-```bash
-kubectl logs -n whoami-demo -l app=whoami --tail=50 -f
-```
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `replicas` | integer | 2 | Number of pod replicas (1-10) |
+| `environment` | string | auto-detect | Environment: local, production, staging, auto-detect |
+| `image` | string | traefik/whoami:v1.10.1 | Container image to deploy |
+
+## Restaurant Analogy
+
+- **Menu (XRD)**: WhoareApp - what developers can order
+- **Recipe (Composition)**: How to prepare the whoami deployment
+- **Ingredients (EnvironmentConfig)**: Environment-specific settings like domains
+- **Kitchen (provider-kubernetes)**: Creates the actual Kubernetes resources
+- **Order (XR)**: `kubectl apply -f example/example-local.yaml`
 
 ## Troubleshooting
 
-1. **Pods not starting**: Check resource limits and node capacity
-2. **Ingress not working**: Verify NGINX ingress controller is installed
-3. **DNS issues**: Ensure DNS is configured for production domain
+### Check XR Status
+```bash
+kubectl get whoareapp
+kubectl describe whoareapp whoami-dev
+```
 
-## GitOps Workflow
+### Check Generated Resources
+```bash
+# Resources are created in a namespace matching the XR name
+kubectl get all -n whoami-dev
+```
 
-1. Make changes to manifests in this repository
-2. Commit and push to main branch
-3. Flux automatically syncs changes (within 1 minute)
-4. Monitor deployment: `flux get kustomizations`
+### View Composition Pipeline
+```bash
+kubectl get composition xwhoareapp-kubernetes -o yaml
+```
+
+## Benefits Over Plain Kubernetes
+
+- **No Manual Patching**: Environment settings are declarative
+- **Reusable**: Same XRD for multiple deployments
+- **Type-Safe**: Schema validation for inputs
+- **Self-Documenting**: XRD describes available options
+- **GitOps Ready**: Deploy XRs via Flux
 
 ## License
 
-This deployment configuration is open source. The whoami application is maintained by Traefik Labs.
+This template is open source. The whoami application is maintained by Traefik Labs.
