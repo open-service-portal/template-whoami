@@ -10,48 +10,17 @@ spec:
     apiVersion: demo.openportal.dev/v1alpha1
     kind: WhoareApp
   
-  # Environment configurations are loaded and used for domain selection
+  # Load the global DNS config
   environment:
     environmentConfigs:
-    - type: Selector
-      selector:
-        matchLabels:
-        - key: environment
-          type: Value
-          value: "production"
-    - type: Selector
-      selector:
-        matchLabels:
-        - key: environment
-          type: Value
-          value: "local"
     - type: Reference
       ref:
-        name: dns-config  # Global DNS config
+        name: dns-config  # Global DNS config with zone
   
   mode: Pipeline
   pipeline:
   
-  # Step 1: Load environment configurations
-  - step: load-environment
-    functionRef:
-      name: function-environment-configs
-    input:
-      apiVersion: environmentconfigs.crossplane.io/v1beta1
-      kind: EnvironmentConfigs
-      spec:
-        environmentConfigs:
-        - type: Selector
-          selector:
-            mode: Multiple
-            maxMatch: 2
-            minMatch: 0
-            matchLabels:
-            - key: environment
-              type: FromCompositeFieldPath
-              valueFromFieldPath: spec.environment
-  
-  # Step 2: Generate resources using go-templating with environment data
+  # Step 1: Generate resources using go-templating with environment data
   - step: deploy-app
     functionRef:
       name: function-go-templating
@@ -61,23 +30,30 @@ spec:
       source: Inline
       inline:
         template: |
-          {{- $environment := .observed.composite.resource.spec.environment | default "auto-detect" }}
-          {{- $replicas := .observed.composite.resource.spec.replicas | default 2 }}
+          {{- $environment := .observed.composite.resource.spec.environment | default "local" }}
+          {{- $replicas := .observed.composite.resource.spec.replicas | default 1 }}
           {{- $image := .observed.composite.resource.spec.image | default "traefik/whoami:v1.10.1" }}
-          {{- $name := .observed.composite.resource.metadata.name }}
+          {{- $xrName := .observed.composite.resource.metadata.name }}
+          {{- $appName := .observed.composite.resource.spec.name | default "whoami" }}
           
-          {{/* Determine domain based on environment */}}
-          {{- $domain := "whoami.localhost" }}
+          {{/* Determine domain based on environment and zone config */}}
+          {{- $zone := "localhost" }}
           {{- if .context.environment }}
-            {{- if .context.environment.domain }}
-              {{- $domain = .context.environment.domain }}
-            {{- else if eq $environment "production" }}
-              {{- $domain = "whoami.openportal.dev" }}
-            {{- else if eq $environment "staging" }}
-              {{- $domain = "whoami-staging.openportal.dev" }}
-            {{- else if eq $environment "local" }}
-              {{- $domain = "whoami.localhost" }}
+            {{- if .context.environment.zone }}
+              {{- $zone = .context.environment.zone }}
             {{- end }}
+          {{- end }}
+          
+          {{/* Build the full domain */}}
+          {{- $domain := "" }}
+          {{- if eq $environment "local" }}
+            {{- $domain = printf "%s.localhost" $appName }}
+          {{- else if eq $environment "production" }}
+            {{- $domain = printf "%s.%s" $appName $zone }}
+          {{- else if eq $environment "staging" }}
+            {{- $domain = printf "%s-staging.%s" $appName $zone }}
+          {{- else }}
+            {{- $domain = printf "%s.localhost" $appName }}
           {{- end }}
           
           ---
@@ -85,19 +61,19 @@ spec:
           apiVersion: kubernetes.crossplane.io/v1alpha2
           kind: Object
           metadata:
-            name: {{ $name }}-namespace
+            name: {{ $xrName }}-namespace
             annotations:
-              crossplane.io/external-name: {{ $name }}-namespace
+              crossplane.io/external-name: {{ $xrName }}-namespace
           spec:
             forProvider:
               manifest:
                 apiVersion: v1
                 kind: Namespace
                 metadata:
-                  name: {{ $name }}
+                  name: {{ $xrName }}
                   labels:
                     app: whoami-xr
-                    instance: {{ $name }}
+                    instance: {{ $xrName }}
             providerConfigRef:
               name: kubernetes-provider
           
@@ -106,9 +82,9 @@ spec:
           apiVersion: kubernetes.crossplane.io/v1alpha2
           kind: Object
           metadata:
-            name: {{ $name }}-deployment
+            name: {{ $xrName }}-deployment
             annotations:
-              crossplane.io/external-name: {{ $name }}-deployment
+              crossplane.io/external-name: {{ $xrName }}-deployment
           spec:
             forProvider:
               manifest:
@@ -116,21 +92,21 @@ spec:
                 kind: Deployment
                 metadata:
                   name: whoami
-                  namespace: {{ $name }}
+                  namespace: {{ $xrName }}
                   labels:
                     app: whoami-xr
-                    instance: {{ $name }}
+                    instance: {{ $xrName }}
                 spec:
                   replicas: {{ $replicas }}
                   selector:
                     matchLabels:
                       app: whoami-xr
-                      instance: {{ $name }}
+                      instance: {{ $xrName }}
                   template:
                     metadata:
                       labels:
                         app: whoami-xr
-                        instance: {{ $name }}
+                        instance: {{ $xrName }}
                     spec:
                       containers:
                       - name: whoami
@@ -163,9 +139,9 @@ spec:
           apiVersion: kubernetes.crossplane.io/v1alpha2
           kind: Object
           metadata:
-            name: {{ $name }}-service
+            name: {{ $xrName }}-service
             annotations:
-              crossplane.io/external-name: {{ $name }}-service
+              crossplane.io/external-name: {{ $xrName }}-service
           spec:
             forProvider:
               manifest:
@@ -173,15 +149,15 @@ spec:
                 kind: Service
                 metadata:
                   name: whoami
-                  namespace: {{ $name }}
+                  namespace: {{ $xrName }}
                   labels:
                     app: whoami-xr
-                    instance: {{ $name }}
+                    instance: {{ $xrName }}
                 spec:
                   type: ClusterIP
                   selector:
                     app: whoami-xr
-                    instance: {{ $name }}
+                    instance: {{ $xrName }}
                   ports:
                   - port: 80
                     targetPort: 80
@@ -195,9 +171,9 @@ spec:
           apiVersion: kubernetes.crossplane.io/v1alpha2
           kind: Object
           metadata:
-            name: {{ $name }}-ingress
+            name: {{ $xrName }}-ingress
             annotations:
-              crossplane.io/external-name: {{ $name }}-ingress
+              crossplane.io/external-name: {{ $xrName }}-ingress
           spec:
             forProvider:
               manifest:
@@ -205,10 +181,10 @@ spec:
                 kind: Ingress
                 metadata:
                   name: whoami
-                  namespace: {{ $name }}
+                  namespace: {{ $xrName }}
                   labels:
                     app: whoami-xr
-                    instance: {{ $name }}
+                    instance: {{ $xrName }}
                   annotations:
                     nginx.ingress.kubernetes.io/rewrite-target: /
                 spec:
@@ -234,7 +210,7 @@ spec:
           status:
             domain: {{ $domain }}
   
-  # Step 3: Mark as ready when all resources are created
+  # Step 2: Mark as ready when all resources are created
   - step: auto-ready
     functionRef:
       name: function-auto-ready

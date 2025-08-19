@@ -2,8 +2,9 @@
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: whoami-prod
+  name: demo-prod
   namespace: default
 spec:
+  name: demo  # Creates demo.openportal.dev
   replicas: 3
-  environment: production  # Uses whoami.openportal.dev domain
+  environment: production

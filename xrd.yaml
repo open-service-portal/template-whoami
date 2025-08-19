@@ -21,12 +21,18 @@ spec:
           spec:
             type: object
             properties:
+              name:
+                type: string
+                description: Application name (becomes subdomain, e.g., myapp.openportal.dev)
+                pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+                minLength: 1
+                maxLength: 63
               replicas:
                 type: integer
                 description: Number of replicas
-                default: 2
+                default: 1
                 minimum: 1
-                maximum: 10
+                maximum: 3
               environment:
                 type: string
                 description: Environment name for config selection

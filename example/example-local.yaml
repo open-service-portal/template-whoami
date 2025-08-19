@@ -2,8 +2,9 @@
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: whoami-local
+  name: myapp-local
   namespace: default
 spec:
+  name: myapp  # Creates myapp.localhost
   replicas: 1
-  environment: local  # Uses whoami.localhost domain
+  environment: local

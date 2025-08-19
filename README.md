@@ -29,6 +29,7 @@ This template demonstrates:
 - Kubernetes cluster with Crossplane v2.0+
 - provider-kubernetes installed
 - NGINX Ingress Controller
+- System-wide EnvironmentConfigs (installed by setup-cluster.sh)
 
 ### Install the Template
 
@@ -80,11 +81,12 @@ spec:
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: whoami-dev
+  name: myapp-local
   namespace: default
 spec:
+  name: myapp      # Application name (becomes subdomain)
   replicas: 1
-  environment: local  # Uses whoami.localhost
+  environment: local  # Uses localhost domain
 ```
 
 Apply:
@@ -98,7 +100,7 @@ Access:
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
 
 # Access the app
-curl http://whoami.localhost:8080
+curl http://myapp.localhost:8080
 ```
 
 ### Deploy for Production
@@ -107,11 +109,12 @@ curl http://whoami.localhost:8080
 apiVersion: demo.openportal.dev/v1alpha1
 kind: WhoareApp
 metadata:
-  name: whoami-prod
+  name: demo-prod
   namespace: default
 spec:
+  name: demo       # Application name (becomes subdomain)
   replicas: 3
-  environment: production  # Uses whoami.openportal.dev
+  environment: production  # Uses openportal.dev domain
 ```
 
 Apply:
@@ -121,29 +124,28 @@ kubectl apply -f example/example-production.yaml
 
 Access:
 ```bash
-curl https://whoami.openportal.dev
+curl https://demo.openportal.dev
 ```
 
 ## How It Works
 
-1. **EnvironmentConfig Selection**: The Composition loads environment-specific configurations based on the `environment` field
-2. **Go-Templating**: Dynamically generates Kubernetes resources with the correct domain
+1. **DNS Zone Loading**: The Composition loads the global dns-config to get the zone (openportal.dev)
+2. **Domain Construction**: Based on the `environment` field:
+   - `local`: `<name>.localhost`
+   - `production`: `<name>.<zone>` (e.g., demo.openportal.dev)
+   - `staging`: `<name>-staging.<zone>` (e.g., demo-staging.openportal.dev)
 3. **Resource Creation**: Creates namespace, deployment, service, and ingress
 4. **Auto-Ready**: Marks the XR as ready when all resources are created
 
 ## Environment Configurations
 
-### Local (whoami.localhost)
-- Domain: `whoami.localhost`
-- Suitable for local development with port-forwarding
+The template uses the system-wide `dns-config` EnvironmentConfig which provides the DNS zone. Domain patterns:
 
-### Production (whoami.openportal.dev)
-- Domain: `whoami.openportal.dev`
-- Can include TLS configuration (cert-manager annotations)
-
-### Staging (whoami-staging.openportal.dev)
-- Domain: `whoami-staging.openportal.dev`
-- For testing before production
+| Environment | Domain Pattern | Example |
+|------------|---------------|----------|
+| `local` | `<name>.localhost` | myapp.localhost |
+| `production` | `<name>.<zone>` | myapp.openportal.dev |
+| `staging` | `<name>-staging.<zone>` | myapp-staging.openportal.dev |
 
 ## API Reference
 
@@ -151,7 +153,8 @@ curl https://whoami.openportal.dev
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `replicas` | integer | 2 | Number of pod replicas (1-10) |
+| `name` | string | whoami | Application name (becomes subdomain) |
+| `replicas` | integer | 1 | Number of pod replicas (1-3) |
 | `environment` | string | auto-detect | Environment: local, production, staging, auto-detect |
 | `image` | string | traefik/whoami:v1.10.1 | Container image to deploy |
 
