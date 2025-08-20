@@ -1,10 +1,12 @@
 # XRD: WhoAmIApp (XR Definition)
 # Purpose: Define a simple demo application with automatic domain configuration
 # Restaurant Analogy: The "menu item" - what customers can order
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
   name: whoamiapps.demo.openportal.dev
+  labels:
+    terasky.backstage.io/generate-form: "true"
   annotations:
     terasky.backstage.io/add-to-catalog: 'true'
     terasky.backstage.io/owner: 'platform-team'
@@ -12,8 +14,8 @@ metadata:
     terasky.backstage.io/component-type: 'crossplane-template'
     terasky.backstage.io/lifecycle: 'production'
 spec:
-  group: demo.openportal.dev
   scope: Namespaced  # Crossplane v2 - XRs can be created in any namespace
+  group: demo.openportal.dev
   names:
     kind: WhoAmIApp
     plural: whoamiapps

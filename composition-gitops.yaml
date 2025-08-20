@@ -1,7 +1,7 @@
 # Composition: WhoAmIApp GitOps Implementation
 # Purpose: Creates a GitHub repository with deployment manifests for Flux
 # Restaurant Analogy: Creates a "recipe book" (repo) for Flux to follow
-apiVersion: apiextensions.crossplane.io/v1
+apiVersion: apiextensions.crossplane.io/v2
 kind: Composition
 metadata:
   name: whoamiapp-gitops
