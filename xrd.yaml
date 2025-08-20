@@ -13,6 +13,7 @@ metadata:
     terasky.backstage.io/lifecycle: 'production'
 spec:
   group: demo.openportal.dev
+  scope: Namespaced  # Crossplane v2 - XRs can be created in any namespace
   names:
     kind: WhoAmIApp
     plural: whoamiapps
