@@ -2,7 +2,7 @@
 # Domain will be automatically determined:
 # - If dns-config exists: myapp.<zone>
 # - Otherwise: myapp.localhost
-apiVersion: demo.openportal.dev/v1alpha1
+apiVersion: openportal.dev/v1alpha1
 kind: WhoAmIApp
 metadata:
   name: myapp

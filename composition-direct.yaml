@@ -10,7 +10,7 @@ metadata:
     description: direct-deployment
 spec:
   compositeTypeRef:
-    apiVersion: demo.openportal.dev/v1alpha1
+    apiVersion: openportal.dev/v1alpha1
     kind: WhoAmIApp
   
   mode: Pipeline

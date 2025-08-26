@@ -1,6 +1,6 @@
 # Example: Deploy WhoAmIApp directly to Kubernetes
 # This uses the direct composition that creates resources immediately
-apiVersion: demo.openportal.dev/v1alpha1
+apiVersion: openportal.dev/v1alpha1
 kind: WhoAmIApp
 metadata:
   name: demo-direct

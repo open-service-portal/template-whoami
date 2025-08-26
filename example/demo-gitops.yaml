@@ -1,7 +1,7 @@
 # Example: Deploy WhoAmIApp via GitOps
 # This uses the gitops composition that creates a GitHub repository
 # with deployment manifests for Flux to deploy
-apiVersion: demo.openportal.dev/v1alpha1
+apiVersion: openportal.dev/v1alpha1
 kind: WhoAmIApp
 metadata:
   name: demo-gitops
