@@ -4,7 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v2
 kind: CompositeResourceDefinition
 metadata:
-  name: whoamiapps.demo.openportal.dev
+  name: whoamiapps.openportal.dev
   labels:
     terasky.backstage.io/generate-form: "true"
   annotations:
@@ -15,7 +15,7 @@ metadata:
     terasky.backstage.io/lifecycle: 'production'
 spec:
   scope: Namespaced  # Crossplane v2 - XRs can be created in any namespace
-  group: demo.openportal.dev
+  group: openportal.dev
   names:
     kind: WhoAmIApp
     plural: whoamiapps
