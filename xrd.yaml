@@ -7,7 +7,8 @@ metadata:
   name: whoamiapps.openportal.dev
   labels:
     terasky.backstage.io/generate-form: "true"
-    openportal.dev/tags: "demo,application"
+    openportal.dev/tag-demo: "true"
+    openportal.dev/tag-application: "true"
   annotations:
     terasky.backstage.io/add-to-catalog: 'true'
     terasky.backstage.io/owner: 'platform-team'
