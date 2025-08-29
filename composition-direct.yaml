@@ -58,7 +58,6 @@ spec:
           kind: Object
           metadata:
             name: {{ $xrName }}-deployment
-            namespace: {{ $xrNamespace }}
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-deployment
               crossplane.io/external-name: {{ $xrName }}-deployment
@@ -119,7 +118,6 @@ spec:
           kind: Object
           metadata:
             name: {{ $xrName }}-service
-            namespace: {{ $xrNamespace }}
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-service
               crossplane.io/external-name: {{ $xrName }}-service
@@ -155,7 +153,6 @@ spec:
           kind: Object
           metadata:
             name: {{ $xrName }}-ingress
-            namespace: {{ $xrNamespace }}
             annotations:
               gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-ingress
               crossplane.io/external-name: {{ $xrName }}-ingress
