@@ -109,6 +109,7 @@ spec:
                             port: 80
                           initialDelaySeconds: 5
             providerConfigRef:
+              kind: ProviderConfig
               name: kubernetes-provider
           
           ---
@@ -143,6 +144,7 @@ spec:
                     protocol: TCP
                     name: http
             providerConfigRef:
+              kind: ProviderConfig
               name: kubernetes-provider
           
           ---
@@ -182,6 +184,7 @@ spec:
                             port:
                               number: 80
             providerConfigRef:
+              kind: ProviderConfig
               name: kubernetes-provider
   
   # Step 3: Mark as ready when all resources are created
