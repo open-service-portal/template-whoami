@@ -4,7 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: whoamiapp.openportal.dev
+  name: whoamiapp
 spec:
   compositeTypeRef:
     apiVersion: openportal.dev/v1alpha1
