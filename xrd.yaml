@@ -20,9 +20,9 @@ spec:
   names:
     kind: WhoAmIApp
     plural: whoamiapps
-  # Default to direct composition when no selector is specified
+  # Default composition when no selector is specified
   defaultCompositionRef:
-    name: whoamiapp-direct
+    name: whoamiapp.openportal.dev
   versions:
   - name: v1alpha1
     served: true
