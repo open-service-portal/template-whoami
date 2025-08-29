@@ -34,6 +34,7 @@ This template demonstrates:
 - provider-kubernetes installed
 - NGINX Ingress Controller
 - System-wide dns-config EnvironmentConfig (installed by setup-cluster.sh)
+- Namespaced ProviderConfig for kubernetes.m.crossplane.io/v1alpha1 (see below)
 
 ### Important: Namespaced XR Architecture
 
@@ -41,11 +42,21 @@ This template uses **namespaced XRs** (Crossplane v2 pattern), which means:
 - XRs are created in a specific namespace (not cluster-wide)
 - All resources are deployed in the **same namespace as the XR**
 - No new namespace is created - the XR's namespace is used
-- Object resources include `namespaceSelector.matchControllerRef: true` to be namespace-scoped
+
+**Solution for Object Resources:**
+
+Provider-kubernetes has TWO Object APIs:
+- `kubernetes.crossplane.io/v1alpha2` - **cluster-scoped** (cannot be used with namespaced XRs)
+- `kubernetes.m.crossplane.io/v1alpha1` - **namespace-scoped** (what we use!)
+
+We use the namespace-scoped `kubernetes.m.crossplane.io/v1alpha1` API with:
+- `metadata.namespace` on each Object resource
+- `kind: ProviderConfig` in providerConfigRef
+- A namespaced ProviderConfig in the same namespace
 
 **Why this matters:**
 - Crossplane v2 enforces that namespaced XRs cannot create cluster-scoped resources
-- Without `namespaceSelector`, Object resources are cluster-scoped and will fail
+- The v1alpha2 Object API is cluster-scoped and will fail with namespaced XRs
 - This follows the security principle that namespace boundaries should be respected
 
 For more details, see [Crossplane PR #6588](https://github.com/crossplane/crossplane/pull/6588).
@@ -53,7 +64,19 @@ For more details, see [Crossplane PR #6588](https://github.com/crossplane/crossp
 ### Install the Template
 
 ```bash
-# Apply XRD and both Compositions
+# First, create a namespaced ProviderConfig in your namespace
+cat <<EOF | kubectl apply -f -
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: kubernetes-provider
+  namespace: demo  # Use your target namespace
+spec:
+  credentials:
+    source: InjectedIdentity
+EOF
+
+# Then apply XRD and Compositions
 kubectl apply -k .
 
 # Or individually:
