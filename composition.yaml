@@ -4,10 +4,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: whoamiapp-direct
-  labels:
-    mode: direct
-    description: direct-deployment
+  name: whoamiapp.openportal.dev
 spec:
   compositeTypeRef:
     apiVersion: openportal.dev/v1alpha1
@@ -109,7 +106,7 @@ spec:
                             port: 80
                           initialDelaySeconds: 5
             providerConfigRef:
-              kind: ProviderConfig
+              kind: ClusterProviderConfig
               name: kubernetes-provider
           
           ---
@@ -144,7 +141,7 @@ spec:
                     protocol: TCP
                     name: http
             providerConfigRef:
-              kind: ProviderConfig
+              kind: ClusterProviderConfig
               name: kubernetes-provider
           
           ---
@@ -184,7 +181,7 @@ spec:
                             port:
                               number: 80
             providerConfigRef:
-              kind: ProviderConfig
+              kind: ClusterProviderConfig
               name: kubernetes-provider
   
   # Step 3: Mark as ready when all resources are created
