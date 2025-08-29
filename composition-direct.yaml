@@ -42,6 +42,7 @@ spec:
           {{- $replicas := .observed.composite.resource.spec.replicas | default 1 }}
           {{- $image := .observed.composite.resource.spec.image | default "traefik/whoami:v1.10.1" }}
           {{- $xrName := .observed.composite.resource.metadata.name }}
+          {{- $xrNamespace := .observed.composite.resource.metadata.namespace }}
           {{- $appName := .observed.composite.resource.spec.name | default "whoami" }}
           
           {{/* Determine domain from dns-config or default to localhost */}}
@@ -50,28 +51,6 @@ spec:
           {{- if $zone }}
             {{- $domain = printf "%s.%s" $appName $zone }}
           {{- end }}
-          
-          ---
-          # Namespace
-          apiVersion: kubernetes.crossplane.io/v1alpha2
-          kind: Object
-          metadata:
-            name: {{ $xrName }}-namespace
-            annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: {{ $xrName }}-namespace
-              crossplane.io/external-name: {{ $xrName }}-namespace
-          spec:
-            forProvider:
-              manifest:
-                apiVersion: v1
-                kind: Namespace
-                metadata:
-                  name: {{ $xrName }}
-                  labels:
-                    app: whoami-xr
-                    instance: {{ $xrName }}
-            providerConfigRef:
-              name: kubernetes-provider
           
           ---
           # Deployment
@@ -88,8 +67,8 @@ spec:
                 apiVersion: apps/v1
                 kind: Deployment
                 metadata:
-                  name: whoami
-                  namespace: {{ $xrName }}
+                  name: {{ $xrName }}
+                  namespace: {{ $xrNamespace }}
                   labels:
                     app: whoami-xr
                     instance: {{ $xrName }}
@@ -146,8 +125,8 @@ spec:
                 apiVersion: v1
                 kind: Service
                 metadata:
-                  name: whoami
-                  namespace: {{ $xrName }}
+                  name: {{ $xrName }}
+                  namespace: {{ $xrNamespace }}
                   labels:
                     app: whoami-xr
                     instance: {{ $xrName }}
@@ -179,8 +158,8 @@ spec:
                 apiVersion: networking.k8s.io/v1
                 kind: Ingress
                 metadata:
-                  name: whoami
-                  namespace: {{ $xrName }}
+                  name: {{ $xrName }}
+                  namespace: {{ $xrNamespace }}
                   labels:
                     app: whoami-xr
                     instance: {{ $xrName }}
@@ -196,7 +175,7 @@ spec:
                         pathType: Prefix
                         backend:
                           service:
-                            name: whoami
+                            name: {{ $xrName }}
                             port:
                               number: 80
             providerConfigRef:
