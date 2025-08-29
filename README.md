@@ -11,6 +11,7 @@ This template demonstrates:
 - **Zero configuration** - no environment parameter needed
 - **Go-templating** for flexible resource generation  
 - **GitOps compatibility** - XRs can be deployed via Flux
+- **Namespaced XRs** - Following Crossplane v2 best practices for multi-tenancy
 
 ## Structure
 
@@ -33,6 +34,21 @@ This template demonstrates:
 - provider-kubernetes installed
 - NGINX Ingress Controller
 - System-wide dns-config EnvironmentConfig (installed by setup-cluster.sh)
+
+### Important: Namespaced XR Architecture
+
+This template uses **namespaced XRs** (Crossplane v2 pattern), which means:
+- XRs are created in a specific namespace (not cluster-wide)
+- All resources are deployed in the **same namespace as the XR**
+- No new namespace is created - the XR's namespace is used
+- Object resources include `namespaceSelector.matchControllerRef: true` to be namespace-scoped
+
+**Why this matters:**
+- Crossplane v2 enforces that namespaced XRs cannot create cluster-scoped resources
+- Without `namespaceSelector`, Object resources are cluster-scoped and will fail
+- This follows the security principle that namespace boundaries should be respected
+
+For more details, see [Crossplane PR #6588](https://github.com/crossplane/crossplane/pull/6588).
 
 ### Install the Template
 
@@ -87,6 +103,26 @@ Creates Kubernetes resources directly using provider-kubernetes. Resources are i
 Creates a GitHub repository with deployment manifests and configures Flux to deploy from it. This enables GitOps workflows with version control and PR-based changes. Requires explicit composition selector.
 
 ## Usage
+
+### Creating XRs in Namespaces
+
+Since this is a namespaced XR, you **must specify a namespace** when creating instances:
+
+```bash
+# Create in a specific namespace
+kubectl apply -f myapp.yaml -n my-team
+
+# Or include namespace in the YAML
+apiVersion: openportal.dev/v1alpha1
+kind: WhoAmIApp
+metadata:
+  name: my-app
+  namespace: my-team  # Required!
+spec:
+  name: my-app
+```
+
+**Important:** All resources (Deployment, Service, Ingress) will be created in the **same namespace** as the XR.
 
 ### Deploy an Application (Direct Mode - Default)
 
