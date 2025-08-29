@@ -109,6 +109,8 @@ spec:
                           initialDelaySeconds: 5
             providerConfigRef:
               name: kubernetes-provider
+            namespaceSelector:
+              matchControllerRef: true
           
           ---
           # Service
@@ -142,6 +144,8 @@ spec:
                     name: http
             providerConfigRef:
               name: kubernetes-provider
+            namespaceSelector:
+              matchControllerRef: true
           
           ---
           # Ingress with dynamic domain
@@ -180,6 +184,8 @@ spec:
                               number: 80
             providerConfigRef:
               name: kubernetes-provider
+            namespaceSelector:
+              matchControllerRef: true
   
   # Step 3: Mark as ready when all resources are created
   - step: auto-ready
