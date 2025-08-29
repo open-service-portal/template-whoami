@@ -54,7 +54,7 @@ spec:
           
           ---
           # Deployment
-          apiVersion: kubernetes.crossplane.io/v1alpha2
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
           kind: Object
           metadata:
             name: {{ $xrName }}-deployment
@@ -109,12 +109,10 @@ spec:
                           initialDelaySeconds: 5
             providerConfigRef:
               name: kubernetes-provider
-            namespaceSelector:
-              matchControllerRef: true
           
           ---
           # Service
-          apiVersion: kubernetes.crossplane.io/v1alpha2
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
           kind: Object
           metadata:
             name: {{ $xrName }}-service
@@ -144,12 +142,10 @@ spec:
                     name: http
             providerConfigRef:
               name: kubernetes-provider
-            namespaceSelector:
-              matchControllerRef: true
           
           ---
           # Ingress with dynamic domain
-          apiVersion: kubernetes.crossplane.io/v1alpha2
+          apiVersion: kubernetes.m.crossplane.io/v1alpha1
           kind: Object
           metadata:
             name: {{ $xrName }}-ingress
@@ -184,8 +180,6 @@ spec:
                               number: 80
             providerConfigRef:
               name: kubernetes-provider
-            namespaceSelector:
-              matchControllerRef: true
   
   # Step 3: Mark as ready when all resources are created
   - step: auto-ready
