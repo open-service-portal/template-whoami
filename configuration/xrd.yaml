@@ -8,6 +8,7 @@ metadata:
   labels:
     terasky.backstage.io/generate-form: "true"
   annotations:
+    backstage.io/source-location: "url:https://github.com/open-service-portal/template-whoami"
     terasky.backstage.io/add-to-catalog: 'true'
     openportal.dev/tags: "demo,application"
     terasky.backstage.io/owner: 'platform-team'
