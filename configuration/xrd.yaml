@@ -24,7 +24,7 @@ spec:
     plural: whoamiapps
   # Default composition when no selector is specified
   defaultCompositionRef:
-    name: whoamiapp.openportal.dev
+    name: whoamiapp
   versions:
   - name: v1alpha1
     served: true
