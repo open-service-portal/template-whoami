@@ -7,6 +7,7 @@ metadata:
   name: whoamiapps.openportal.dev
   labels:
     terasky.backstage.io/generate-form: "true"
+    openportal.dev/version: "dev"  # CI/CD will replace with actual version
   annotations:
     backstage.io/source-location: "url:https://github.com/open-service-portal/template-whoami"
     terasky.backstage.io/add-to-catalog: 'true'
