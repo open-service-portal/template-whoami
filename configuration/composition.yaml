@@ -167,8 +167,17 @@ spec:
                     instance: {{ $xrName }}
                   annotations:
                     nginx.ingress.kubernetes.io/rewrite-target: /
+                    {{- if ne $zone "localhost" }}
+                    cert-manager.io/cluster-issuer: letsencrypt-prod
+                    {{- end }}
                 spec:
                   ingressClassName: nginx
+                  {{- if ne $zone "localhost" }}
+                  tls:
+                  - hosts:
+                    - {{ $domain }}
+                    secretName: {{ $xrName }}-tls
+                  {{- end }}
                   rules:
                   - host: {{ $domain }}
                     http:
